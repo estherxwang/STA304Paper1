@@ -1,0 +1,341 @@
+---
+title: "Toronto Shelter Flow Exploratory Analysis"
+author: "Dingding Wang"
+date: "02/06/2022"
+abstract: "According to the 2021 report on international housing affordability by Urban Reform Institute, Toronto ranked 5th the most ‘severely unaffordable’ city globally. Toronto has increasing shortage of affordable housing, resulting in many individuals experiencing homeless and increasingly rely on temporary shelters. This report will discuss the growing issue of homeless trends in Toronto."
+thanks: 'Code and data are available at: https://github.com/estherxwang/STA304Paper1'
+output:
+  pdf_document:
+    latex_engine: xelatex
+  word_document: default
+---
+
+# 1 Introduction
+
+In this report, I aim to assess the breadth of the homeless shelter problem and to develop a methodology for shelter measurement. The spike in homelessness has been a major social issue in Canada for decades. The City of Toronto has budgeted to spend 663.2 million dollars on homeless people and supports in 2021, which is about double the amount the government spent in 2019. The government is committed to decreasing the risk of outbreaks of Covid-19 in the shelter system and continues to provide enhanced supports to homelessness. However, the number of homeless people in Canada is not trending downward.
+
+Under the affect of COVID-19, there is a growing recognition that homelessness is a more complex social and public health phenomenon than not having a place to live. While there is evidence of links between homelessness and social factors such as government benefits, drug addiction and unemployment, few studies have examined the broader social context in which homelessness occurs from the perspective of the homeless themselves. The purpose of this report is to examine the stories of homelessness in order to understand the social conditions under which homelessness occurs and to propose theoretical explanations, as well as shelter system flow of Toronto.
+
+# 2 Data
+
+## 2.1 Data Source
+
+Toronto Shelter System Flow data is collected and published by Shelter Support & Housing Administration division of the government, and is updated on a monthly basis. Data collector last updated the dataset on Jan 7th, and data is refreshed on the 15th of each month or the next business day. Data was obtained from Shelter Management Information System (SMIS) database, which is an internal tool that improves efficiency for shelter staff to check for available resourses for homeless people and record.
+
+## 2.2 Methodology and Data Collection
+
+Data for this project was collected from Open Data Toronto portal, which is the official source for Toronto open data from City divisions and agencies. Toronto Shelter System Flow dataset is published by Shelter, Support & Housing Administration, which contains information about homeless people in Toronto who are entering and leaving the shelter system each month from January 2020 to December 2021. The dataset is refereshed monthly and last updated on Jan 7, 2022. Implementing the shelter system involves changing in many policies, funding plans and data collection procedure, which all intersect with the application that power the operation of divisions, the Shelter Management Information System (Dominguez,2020). The data of overnight services was collected through SMIS in order to record number of people who are accessing these services into shelter programs. SMIS eliminates time-consuming application processes to simplify and improve shelter services, thus shelter staff are able to quickly find available beds throughout the system and speed up the flow of patients in and out. This dataset aims to help reduce homelessness in Toronto and develop a better Shelter Management Information System.
+
+While the dataset is refreshed on a monthly basis, there exist some limitations and biases. Regarding the SMIS system, although it significantly improves the efficiency of shelter services, the shelter sites without the system and funded by other levels of government are not contained in th dataset. Since the population the dataset is supposed to represent all homeless people in Toronto, using SMIS leads to unaccuracy and incomplete data. In addition, the dataset reflect only people who use night services and exclude people who sleep outdoors specifically or use other homelessness services. Another concern is that the release date of the dataset is on the 15th of each month, which indicates that the dataset is replaced monthly when new dataset is generated and the previous analysis research may not be applicable. The conclusions drawn from the report may not be generalized to a wider population and may relate only to the participants in this study(Mabhala et al,2017).
+
+## 2.3 Important variables
+
+The Toronto Shelter System dataset includes 180 observations with 18 variables. By cleaning the data using mutate and select in tidyverse (Wickham, 2019), 11 variables were selected, which includes: date, population group (either refugee, family, or others), newly identified homeless people, count of actively homeless people, age under 16, age 16-24, age 25-44, age 45-64, age 65 and over, gender male, gender female, and other gender.
+
+There are 8 primary variables from the dataset that we will be analyzing. 
+
+**Date**: The time period (month/year) for which the data is being published (format: mmm-yy)
+
+**population_group**: Each row represents different group: all population, chronic, refugees, families, youth, single adult and non-refugees
+
+**Newly Identified**: People who entered the shelter system for the first time
+
+**Actively Homeless**: People who have used the shelter system at least one time in the past three months and did not move to permanent housing.
+
+**moved_to_housing**: Moved to Permanent Housing: People who were using the shelter system and have moved to permanent housing.
+
+**returned_from_housing**: Moved to Permanent Housing: People who were using the shelter system and have moved to permanent housing.
+
+**returned_to_shelter**: Moved to Permanent Housing: People who were using the shelter system and have moved to permanent housing.
+
+**no_recent_shelter_use**: People who were using the shelter system previously, but have not used the shelter system in the past three months. Some other communities may call this indicator “Moved to Inactive”.
+
+Since our research focus is population group, understanding the official definition of population variables is essential to answering the research question:
+
+**All populations**: The total number of individuals represented in the report without any demographic breakdown.
+
+**Chronic**: People who meet one of the criteria as per the federal definition of chronic homelessness. Either the person has recorded a minimum of 180 overnight stay in the past year (365 days) or has recurrent overnight stays over the past three years with a cumulative duration of at least 546 nights.
+
+**Families**: Individuals who are recorded as staying in a family designated overnight service.
+
+**Youth**: Unaccompanied youth and includes people who are between 16 and 24 years old by the last date of the reporting month and are not members of a family as defined above.
+
+**Single Adult**: Individuals who are neither classified as youth nor are members of a family.
+
+**Refugees**: People who either identify as refugees upon intake to a shelter system or whose intake is completed into a program designated for refugees. Applies to all household members as answered by the household head.
+
+**Non-Refugees**: People who are not categorized as refugee per the definition above.
+
+**Indigenous**: The person who has self-identified as First Nations (status, non-status, treaty, non-treaty), Metis or Inuit in at least one of the intake(s) completed in SMIS (Shelter Management Information System).
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+# set up libraries
+library(wesanderson)
+library(kableExtra)
+library(opendatatoronto)
+library(dplyr)
+library(haven)
+library(tidyverse)
+library(corrplot)
+library(ggplot2)
+library(ggpubr)
+```
+
+```{r,include=FALSE}
+# get package from open data Toronto
+package <- show_package("ac77f532-f18b-427c-905c-4ae87ce69c93")
+package
+# get all resources for this package
+resources <- list_package_resources("ac77f532-f18b-427c-905c-4ae87ce69c93")
+# identify datastore resources; by default, Toronto Open Data sets datastore resource format to CSV for non-geospatial and GeoJSON for geospatial resources
+datastore_resources <- filter(resources, tolower(format) %in% c('csv', 'geojson'))
+# load the first datastore resource as a sample
+data <- filter(datastore_resources, row_number()==1) %>% get_resource()
+data
+```
+
+## 2.4 Data Cleaning
+
+Using the `tidyverse`(Wickham, 2019) and `dplyr` (Wickham, 2018) package, I cleaned the data and extracted the important variables to start my exploratory analysis procedure. Since my goal of this data analysis report is to examine the relationship between the flow of shelter in Toronto and potential factors, I first filter the population group with filter() function to find cases of different population groups and combine them. Then, I used the rename() function to efficiently correct the variables that are not well formatted for better analysis. Our dataset focuses the data collected from the past two years, so the date variable is also important. I converted the year-month date variable to formal date format for better visualizations. Lastly, important variables were selected for further analysis.
+
+```{r,include=FALSE}
+# Data cleaning.
+data_clean <- data %>%
+  rename("date"="date(mmm-yy)",
+         "other_gender"="gender_transgender,non-binary_or_two_spirit",
+         "age0_15" = "ageunder16",
+         "age16_24" = "age16-24", 
+         "age25_44" = "age25-44", 
+         "age45_64"= "age45-64") %>%
+  mutate(
+        population_group = case_when(
+        population_group == "All Population" ~ "all_population",
+        population_group == "Chronic" ~ "chronic",
+        population_group == "Refugees" ~ "refugees",
+        population_group == "Families" ~ "families",
+        population_group == "Youth" ~ "youth",
+        population_group == "Single Adult" ~ "single_adult",
+        population_group == "Non-refugees" ~ "non_refugees",
+        population_group == "Indigenous" ~ "indigenous"))%>%
+  mutate(date=as.Date(paste("01-", `date`, sep = ""), format="%d-%b-%y")) %>%
+  mutate(shelter_usage = returned_to_shelter + newly_identified) %>%
+  select(date,population_group, newly_identified,
+         returned_from_housing,returned_to_shelter,actively_homeless,
+         age0_15, age16_24, age25_44, age45_64, age65over, 
+         gender_male,gender_female,other_gender,
+         shelter_usage,no_recent_shelter_use,
+         moved_to_housing)
+```
+
+```{r, include=FALSE}
+# create a subset of cleaned data for flow analysis.
+pop <- data_clean %>%
+  select(date,
+         population_group,
+         newly_identified,
+         returned_from_housing,
+         returned_to_shelter, 
+         moved_to_housing,
+         no_recent_shelter_use,
+         actively_homeless)
+```
+
+```{r,include=FALSE}
+# add positive indicators and subtract negative indicators 
+flow_tot <- pop %>% 
+  group_by(date,population_group) %>%
+  mutate("sum_positive" = sum(newly_identified,actively_homeless,
+                         returned_from_housing,returned_to_shelter),
+         "sum_negative" = -1*(sum(moved_to_housing,no_recent_shelter_use)),
+         "sum_tot" = sum_positive + sum_negative) %>%
+  select(date,
+         population_group,
+         sum_positive,
+         sum_negative,
+         sum_tot)
+```
+
+```{r, echo=FALSE}
+# Create a bar-plot of Shelter Flow of Homelessness by Month.
+flow_tot %>% 
+  ggplot(aes(x=date, y=sum_tot))+
+  geom_bar(stat="identity", position=position_dodge(),fill="steelblue")+
+  labs(x="Date", y="Total Shelter Flow of Homelessness",
+       title="Figure 1: Total Shelter Flow of Homelessness by Month")+
+  theme_minimal()
+```
+From the bar plot generated for shelter flow of homelessness by month, we can observe the trend of flow of shelter varies by season. There is a noticeable decrease in the number of total shelter flow from March to April in 2020. Despite the potential reason of lockdown policy, weather may play an important role in it. In winter, the shelter is occupied the most, particularly from January to March; on the contrary, the flow is much lower in summer. As Canada's largest city, the climate of Toronto is continental with extremely cold winters and warm summers. The winter runs from late November with the average temperature about -5.5 °C (22 °F), while summers are warm with highs around 26/27 °C (79/81 °F). The temperature difference is a convincing explanation of the change in shelter flows corresponding to months. We can also notice that the trend does not seem to be affected by Covid-19 throughout the months.
+
+```{r, echo=FALSE}
+# Now we calculate the mean and standard deviation of the total residents and put them into a table
+sum_mean <- mean(flow_tot[["sum_tot"]])
+sum_sd <- sd(flow_tot[["sum_tot"]])
+kable(data.frame(sum_mean,sum_sd)) %>% 
+  kable_styling(position = "center") %>% 
+  kable_styling(latex_options = "HOLD_position")
+```
+
+According to the table, the mean and standard deviation of sum of shelter flow are relatively approximately 3901 and 2821.
+
+```{r, echo=FALSE}
+# create a table of the dataset with population parameters
+kable(head(flow_tot), caption=NULL)%>% 
+  kable_styling(position = "center") %>% 
+  kable_styling(latex_options = "HOLD_position")
+```
+
+
+```{r yearcat, fig.cap="Shelter Flow of Population Groups by Month", fig.pos = "H", echo = FALSE, fig.width=8, fig.height=3.2}
+#plotting the Shelter Flow of Population Groups by Month
+flow_tot %>% 
+  dplyr::select(date,population_group,sum_positive,sum_tot) %>%
+  group_by(date, population_group) %>% dplyr::summarize_all(sum) %>%
+  mutate(ClearRate = sum_positive / sum_tot) %>%
+  ggplot() + 
+  geom_point(aes(x = date, y = sum_tot, color = population_group), size = 2) +
+  theme_light() + 
+  labs(x = "Year", y = "Shelter Flow", 
+       title = "Figure 2: Shelter Flow of Population Groups by Month") + 
+  guides(color = guide_legend(override.aes = list(size=3))) +
+    theme(plot.title = element_text(face = "bold"))
+```
+According to the plot of shelter flow of population groups by month, we can observe that the three variables among population groups that fluctuate the most are non refugees, single adults and chronic. It is also worth noticing that the shape of trend between non_refugees and single adults are almost identical, which is a significant indicator that there might be a strong correlation between these two variables. To dive into the potential relationships among variables and the shelter flow of both entering and exiting, I generated a complete diagram below.
+
+```{r,echo=FALSE}
+flow_plot <- flow_tot %>%
+  filter(population_group != "all_population", 
+         population_group != "indigenous",
+         population_group != "youth",
+         population_group != "Non-refugees",
+         population_group != "Families") %>%
+  ggplot(aes(x=date,color=population_group, group=population_group))+
+  geom_line(aes(y=sum_tot, linetype="Total"))+
+  geom_line(aes(y=sum_positive, linetype="Entering"))+
+  geom_line(aes(y=-sum_negative, linetype="Exiting"))+
+  theme_classic()+
+  theme(axis.text.x = element_text(size = 8, angle=45))+
+  labs(title="Figure 3: Toronto Shelter System Flow by Population Group",
+       subtitle="Flow of People Entering and Exiting the Shelter in Each Month")+
+  xlab("Date (Year-Month)") + 
+  ylab("Population") 
+flow_plot
+```
+According to the above plot indicating flow of people entering and exiting the shelter by month, we can still easily notice that the correlation of both entering nd exiting between non_refugees and single adult are very high. A potential reason may be that young adults who drop out of school at an early age may be more likely to be unemployed or addicted to drugs. The unemployment rates of young men and young women aged 15 to 30 and not in school are respectively 15.5% and 13.7% by the year of 2020 (Government of Canada, 2021). To support our hypothesis, I am conducting a further analysis of shelter flow according to age group.
+
+```{r, include=FALSE}
+# sum up young adults and other age group
+sum(data_clean$age0_15,data_clean$age16_24)
+sum(data_clean$age25_44,data_clean$age45_64,data_clean$age65over)
+```
+
+
+```{r, echo=FALSE}
+# Compare using pie chart
+age_compare <- data.frame(
+  young_old = c('Young Adult','Others'),
+  value = c(149226, 549213))
+
+age_chart <- ggplot(age_compare, aes(x="", y=value, fill=young_old))+
+  geom_bar(width = .5, stat = "identity") +
+  coord_polar("y", start=0) + 
+  geom_text(aes(label = paste0(round(value*100/sum(value)), "%")), 
+            position = position_stack(vjust = 0.5))+ 
+  labs(title = "Figure 4: Comparison between Young Adults and Others")
+age_chart
+```
+
+According to the pie chart we generated for comparison between young adults and other age groups, there is no significant evidence that young adults dominate the homeless shelter flow. Now, let's move to gender analysis.
+
+```{r,echo=FALSE}
+maleplot<-data_clean %>%
+  filter(population_group != "all_population", 
+         population_group != "indigenous",
+         population_group != "youth",
+         population_group != "Non-refugees",
+         population_group != "Families") %>%
+  group_by(date) %>%
+  ggplot(aes(x = date, y = gender_male, color = population_group)) +
+  geom_smooth(aes(group = population_group), se = FALSE) +
+  scale_y_continuous(limits = c(0, NA)) +
+  labs(color = "",
+       x = "Date(Month)",
+       y = "Male",
+       title = "Shelter Usage of Male",
+       subtitle = "Shelter Usage of Male by Population Group") +
+  theme_minimal()
+femaleplot<-data_clean %>%
+    filter(population_group != "all_population", 
+         population_group != "indigenous",
+         population_group != "youth",
+         population_group != "Non-refugees",
+         population_group != "Families") %>%
+  group_by(date) %>%
+  ggplot(aes(x = date, y = gender_female, color = population_group)) +
+  geom_smooth(aes(group = population_group), se = FALSE) +
+  scale_y_continuous(limits = c(0, NA)) +
+  labs(color = "",
+       x = "Date(Month)",
+       y = "Female",
+       title = "Shelter Usage of Female",
+       subtitle = "Shelter Usage of Female by Population Group") +
+  theme_minimal()
+otherplot<-data_clean %>%
+    filter(population_group != "all_population", 
+         population_group != "indigenous",
+         population_group != "youth",
+         population_group != "Non-refugees",
+         population_group != "Families") %>%
+  group_by(date) %>%
+  ggplot(aes(x = date, y = other_gender, color = population_group)) +
+  geom_smooth(aes(group = population_group), se = FALSE) +
+  scale_y_continuous(limits = c(0, NA)) +
+  labs(color = "",
+       x = "Date(Month)",
+       y = "Other Gender",
+       title = "Shelter Usage of Other Gender",
+       subtitle = "Shelter Usage of Other Gender by Population Group") +
+  theme_minimal()
+ggarrange(maleplot, femaleplot, otherplot,heights = c(2, 2),
+          ncol = 2, nrow = 2)
+```
+
+
+# 3 Conclusion
+
+There has always been a debate that the number of years foreign-born adults lived in Canada was significantly associated with risk for homelessness. Experts argue that 'There's just not enough affordable housing options', and the recent released government figures show that a growing number of newcomers to Canada either end up living in shelters or become homeless. As the president of the Canadian Alliance to End Homelessness, Tim Richter believes that refugees are being forced to settle in homeless shelters in response to shortage of housing capacity(Wright, 2019). Based on the analysis above, we can conclude that the usage of shelter and shelter flow is significantly impacted by weather and the growing number of non_refugees in Toronto. Extreme weathers makes it extremely difficult for homeless people to stay out overnight and rises the shelter flow, and the raising number of non-refugees also result in significant increase in shelter usage.
+
+\newpage
+
+# Reference
+
+City of Toronto. (2021, November 15). Shelter System Flow Data. City of Toronto. Retrieved February 3, 2022, from https://www.toronto.ca/city-government/data-research-maps/research-reports/housing-and-homelessness-research-and-reports/shelter-system-flow-data/ 
+
+Jesse Donaldson, Tim Richter, & Tanya Gulliver (2013): The State of Homelessness in Canada 2013. Toronto: Canadian Homelessness Research Network Press. Retrieved February 3, 2022, from https://www.homelesshub.ca/sites/default/files/SOHC2103.pdf
+
+Mabhala, M., Yohannes, A., & Griffith, M. (2017, August 22). Social Conditions of becoming homelessness: Qualitative analysis of life stories of Homeless Peoples - International Journal for Equity in health. Retrieved February 08, 2022, from https://doi.org/10.1186/s12939-017-0646-3
+
+Dominguez, S. (2021, January 15). Lessons from the frontlines of service delivery. Retrieved February 08, 2022, from https://codefor.ca/blog/lessons-from-the-frontlines-of-service-delivery/
+
+Climate - toronto (Canada). (n.d.). Retrieved February 08, 2022, from https://www.climatestotravel.com/climate/canada/toronto
+
+Wright, T. (2019, August 09). Growing number of newcomers, refugees ending up homeless in Canada: Studies | CBC News. Retrieved February 08, 2022, from https://www.cbc.ca/news/politics/homeless-newcomers-refugees-canada-studies-1.5242426
+
+Government of Canada, S. (2021, July 26). Study: Youth employment in Canada. Retrieved February 08, 2022, from https://www150.statcan.gc.ca/n1/daily-quotidien/210726/dq210726b-eng.htm
+
+R Core Team. 2020. R: A Language and Environment for Statistical Computing. Vienna, Austria: R Foundation for Statistical Computing. https://www.R-project.org/.
+
+Wickham, Hadley. 2021. Tidyr: Tidy Messy Data. https://CRAN.R-project.org/package=tidyr.
+
+Wickham, Hadley, Mara Averick, Jennifer Bryan, Winston Chang, Lucy D’Agostino McGowan, Romain François, Garrett Grolemund, et al. 2019. “Welcome to the tidyverse.” Journal of Open Source Software 4 (43): 1686. https://doi.org/10.21105/joss.01686.
+
+Wickham, Hadley, Romain François, Lionel Henry, and Kirill Müller. 2021. Dplyr: A Grammar of Data Manipulation. https://CRAN.R-project.org/package=dplyr.
+
+Wickham, Hadley. 2016. Ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New York. https://ggplot2.tidyverse.org
+———. 2021. Forcats: Tools for Working with Categorical Variables (Factors). https://CRAN.R-project.org/package=forcats.
+
+
+
