@@ -8,6 +8,7 @@ output:
   pdf_document:
     latex_engine: xelatex
   word_document: default
+bibliography: references.bib
 ---
 
 # 1 Introduction
