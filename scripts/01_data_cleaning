@@ -1,0 +1,50 @@
+# Data cleaning.
+data_clean <- data %>%
+  rename("date"="date(mmm-yy)",
+         "other_gender"="gender_transgender,non-binary_or_two_spirit",
+         "age0_15" = "ageunder16",
+         "age16_24" = "age16-24", 
+         "age25_44" = "age25-44", 
+         "age45_64"= "age45-64") %>%
+  mutate(
+        population_group = case_when(
+        population_group == "All Population" ~ "all_population",
+        population_group == "Chronic" ~ "chronic",
+        population_group == "Refugees" ~ "refugees",
+        population_group == "Families" ~ "families",
+        population_group == "Youth" ~ "youth",
+        population_group == "Single Adult" ~ "single_adult",
+        population_group == "Non-refugees" ~ "non_refugees",
+        population_group == "Indigenous" ~ "indigenous"))%>%
+  mutate(date=as.Date(paste("01-", `date`, sep = ""), format="%d-%b-%y")) %>%
+  mutate(shelter_usage = returned_to_shelter + newly_identified) %>%
+  select(date,population_group, newly_identified,
+         returned_from_housing,returned_to_shelter,actively_homeless,
+         age0_15, age16_24, age25_44, age45_64, age65over, 
+         gender_male,gender_female,other_gender,
+         shelter_usage,no_recent_shelter_use,
+         moved_to_housing)
+
+# create a subset of cleaned data for flow analysis.
+pop <- data_clean %>%
+  select(date,
+         population_group,
+         newly_identified,
+         returned_from_housing,
+         returned_to_shelter, 
+         moved_to_housing,
+         no_recent_shelter_use,
+         actively_homeless)
+         
+flow_tot <- pop %>% 
+  group_by(date,population_group) %>%
+  mutate("sum_positive" = sum(newly_identified,actively_homeless,
+                         returned_from_housing,returned_to_shelter),
+         "sum_negative" = -1*(sum(moved_to_housing,no_recent_shelter_use)),
+         "sum_tot" = sum_positive + sum_negative) %>%
+  select(date,
+         population_group,
+         sum_positive,
+         sum_negative,
+         sum_tot)
+         
